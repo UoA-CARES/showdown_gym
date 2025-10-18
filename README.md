@@ -326,6 +326,47 @@ def calc_reward(self, battle: AbstractBattle) -> float:
     return reward
 ```
 
+### Action Space - process_action
+The ***_get_action_size*** method indicates how many actions are being learned by the agent - the default uses the 26 possible actions from Showdown directly. 
+
+The ***process_action*** function can be used to modify what the actual "action" is that the agent is learning. In simple terms - the actions from the agent can be higher level decisions of the overall agent decision making. However, the value that is ultimatly passed back needs to align with the 26 possible actions as laid out in the comments - the Showdown action space. You are ***unable*** to create actions beyond that which interact with the actual environment. 
+
+The simplest example is reducing the size of the action space to excldue certain Showdown Actions and remapping the agents action values to the appropriate Showdown values. 
+
+```python
+def _get_action_size(self) -> int | None:
+    """
+    None just uses the default number of actions as laid out in process_action - 26 actions.
+
+    This defines the size of the action space for the agent - e.g. the output of the RL agent.
+
+    This should return the number of actions you wish to use if not using the default action scheme.
+    """
+    return None  # Return None if action size is default
+
+def process_action(self, action: np.int64) -> np.int64:
+    """
+    Returns the np.int64 relative to the given action.
+
+    The action mapping is as follows:
+    action = -2: default
+    action = -1: forfeit
+    0 <= action <= 5: switch
+    6 <= action <= 9: move
+    10 <= action <= 13: move and mega evolve
+    14 <= action <= 17: move and z-move
+    18 <= action <= 21: move and dynamax
+    22 <= action <= 25: move and terastallize
+
+    :param action: The action to take.
+    :type action: int64
+
+    :return: The battle order ID for the given action in context of the current battle.
+    :rtype: np.Int64
+    """
+    return action
+```
+
 ### Training/Evaluation Info - get_additional_info
 You will want to produce quantified performance metrics for your agent throughout the training beyond just the reward given to the agent. To add additional information to be plotted later you can extend the ***get_additional_info*** function. This will return to the training system additonal information about the progress of the agent in the battle that you can use to evaluate your agent. Note that the info data will only show the information from the last step of the episode. 
 

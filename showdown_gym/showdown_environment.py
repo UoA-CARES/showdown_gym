@@ -2,7 +2,12 @@ import os
 from typing import Any, ClassVar, Dict, Iterable, List, Tuple
 
 import numpy as np
-from poke_env import MaxBasePowerPlayer, RandomPlayer, SimpleHeuristicsPlayer
+from poke_env import (
+    AccountConfiguration,
+    MaxBasePowerPlayer,
+    RandomPlayer,
+    SimpleHeuristicsPlayer,
+)
 from poke_env.battle import AbstractBattle
 from poke_env.battle.field import Field
 from poke_env.battle.move import Move
@@ -13,6 +18,7 @@ from poke_env.battle.side_condition import SideCondition, STACKABLE_CONDITIONS
 from poke_env.battle.status import Status
 from poke_env.battle.weather import Weather
 from poke_env.environment.single_agent_wrapper import SingleAgentWrapper
+from poke_env.environment.singles_env import ObsType
 from poke_env.player.player import Player
 
 from showdown_gym.base_environment import BaseShowdownEnv
@@ -114,6 +120,40 @@ class ShowdownEnvironment(BaseShowdownEnv):
             team=team,
         )
         self._reward_tracker: Dict[str, Dict[str, float]] = {}
+
+        self.rl_agent = account_name_one
+
+    def _get_action_size(self) -> int | None:
+        """
+        None just uses the default number of actions as laid out in process_action - 26 actions.
+
+        This defines the size of the action space for the agent - e.g. the output of the RL agent.
+
+        This should return the number of actions you wish to use if not using the default action scheme.
+        """
+        return None  # Return None if action size is default
+
+    def process_action(self, action: np.int64) -> np.int64:
+        """
+        Returns the np.int64 relative to the given action.
+
+        The action mapping is as follows:
+        action = -2: default
+        action = -1: forfeit
+        0 <= action <= 5: switch
+        6 <= action <= 9: move
+        10 <= action <= 13: move and mega evolve
+        14 <= action <= 17: move and z-move
+        18 <= action <= 21: move and dynamax
+        22 <= action <= 25: move and terastallize
+
+        :param action: The action to take.
+        :type action: int64
+
+        :return: The battle order ID for the given action in context of the current battle.
+        :rtype: np.Int64
+        """
+        return action
 
     def get_additional_info(self) -> Dict[str, Dict[str, Any]]:
         info = super().get_additional_info()
@@ -527,7 +567,8 @@ class ShowdownEnvironment(BaseShowdownEnv):
         padded: List[Move | None] = list(moves)[:4]
         if len(padded) < 4:
             padded.extend([None] * (4 - len(padded)))
-        return padded########################################
+        return padded
+########################################
 # DO NOT EDIT THE CODE BELOW THIS LINE #
 ########################################
 
@@ -558,27 +599,35 @@ class SingleShowdownWrapper(SingleAgentWrapper):
         evaluation: bool = False,
     ):
         opponent: Player
+        unique_id = time.strftime("%H%M%S")
+
+        opponent_account = "ot" if not evaluation else "oe"
+        opponent_account = f"{opponent_account}_{unique_id}"
+
+        opponent_configuration = AccountConfiguration(opponent_account, None)
         if opponent_type == "simple":
-            opponent = SimpleHeuristicsPlayer()
+            opponent = SimpleHeuristicsPlayer(
+                account_configuration=opponent_configuration
+            )
         elif opponent_type == "max":
-            opponent = MaxBasePowerPlayer()
+            opponent = MaxBasePowerPlayer(account_configuration=opponent_configuration)
         elif opponent_type == "random":
-            opponent = RandomPlayer()
+            opponent = RandomPlayer(account_configuration=opponent_configuration)
         else:
             raise ValueError(f"Unknown opponent type: {opponent_type}")
 
-        account_name_one: str = "train_one" if not evaluation else "eval_one"
-        account_name_two: str = "train_two" if not evaluation else "eval_two"
+        account_name_one: str = "t1" if not evaluation else "e1"
+        account_name_two: str = "t2" if not evaluation else "e2"
 
-        account_name_one = f"{account_name_one}_{opponent_type}"
-        account_name_two = f"{account_name_two}_{opponent_type}"
+        account_name_one = f"{account_name_one}_{unique_id}"
+        account_name_two = f"{account_name_two}_{unique_id}"
 
         team = self._load_team(team_type)
 
-        battle_fomat = "gen9randombattle" if team is None else "gen9ubers"
+        battle_format = "gen9randombattle" if team is None else "gen9ubers"
 
         primary_env = ShowdownEnvironment(
-            battle_format=battle_fomat,
+            battle_format=battle_format,
             account_name_one=account_name_one,
             account_name_two=account_name_two,
             team=team,
