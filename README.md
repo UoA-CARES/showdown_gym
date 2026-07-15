@@ -87,40 +87,17 @@ The cares_reinforcement_learning package provides implementations of modern Rein
 cd ~/compsys726
 git clone https://github.com/UoA-CARES/cares_reinforcement_learning.git
 cd cares_reinforcement_learning
-pip3 install -r requirements.txt
-pip3 install --editable .
+pip install -e .[gym]
 ```
 
-### 2: showdown_gym (primary package)
-This is the current package - it contains the requirements for implementing the Pokemon Environment for this project. All your work will be done in this specific package. This is explained in further details below. 
-
-```
-cd ~/compsys726
-git clone https://github.com/UoA-CARES/showdown_gym.git
-cd showdown_gym
-pip3 install -r requirements.txt
-pip3 install --editable .
-```
-
-### 3: gymnasium_envrionments
-We have created a standardised general purpose gym that wraps the most common simulated environments used in reinforcement learning into a single easy to use place. This package serves as an example of how to develop and setup new environments - particularly for the robotic environments. This package utilises the algorithms implemented in the repository https://github.com/UoA-CARES/cares_reinforcement_learning/ and the Pokemon Environment you will implement here in showdown_gym. Additional information can found here: https://github.com/UoA-CARES/gymnasium_envrionments
-
-This package is how you will run the training agent and test your Showdown Environment. It enables all the standardised logging and configuration handling for your evaluations.
-
-```
-cd ~/compsys726
-git clone https://github.com/UoA-CARES/gymnasium_envrionments.git 
-cd gymnasium_envrionments
-pip3 install -r requirements.txt
-```
-
-To test that everything has installed correctly you can test training an RL agent for the OpenAI **HalfCheetah** task. The `run.py` takes in hyperparameters that allow you to customise the training enviromment – OpenAI, DMCS Environment, Showdown - or RL algorithm. Use `python3 run.py -h` for help on what parameters are available for customisation.
+#### Test the Installation
+To test that everything has installed correctly you can test training an RL agent for the OpenAI **HalfCheetah** task. The `run.py` takes in hyperparameters that allow you to customise the training enviromment – OpenAI, DMCS Environment, Showdown - or RL algorithm. Use `cares-rl train -h` for help on what parameters are available for customisation.
 
 To test that everything has installed correctly you can run an example of the openai environment with TD3 through the console command below.
 
 ```
 cd ~/compsys726/gymnasium_envrionments/scripts
-python run.py train cli --gym openai --task HalfCheetah-v5 TD3 --display 1
+cares-rl train cli --gym openai --task HalfCheetah-v5 TD3 --display 1
 ```
 
 You should see the environment on screen with the robot in the image below trying to learn to run:
@@ -129,20 +106,37 @@ You should see the environment on screen with the robot in the image below tryin
     <img src="./media/cheetah.png" style="width: 60%;" />
 </p>
 
+### 2: showdown_gym (primary package)
+This is the current package - it contains the requirements for implementing the Pokemon Environment for this project. All your work will be done in this specific package. This is explained in further details below - you are effectively making the "gym" environment for the Pokemon Showdown game. The package is already setup to work with the cares_reinforcement_learning package. 
+
+```
+cd ~/compsys726
+git clone https://github.com/UoA-CARES/showdown_gym.git
+cd showdown_gym
+pip3 install -r requirements.txt
+pip3 install -e .
+```
+
 # Showdown Training
 To run the Showdown Environment you need to run it through the ***gymnasium_envrionments*** package. The Showdown environment is not currently implemented - it is your job to complete the state, action, and reward functions for the agent to learn from. The current implementation shows a basic functional example but this is insufficient to learn from. 
 
 To train an agent on the environment you can use the command below. The ***domain*** defines the type of Pokemon team you will be training with and against. The ***task*** defines the type of expert agent that the agent will train to beat. 
 
+In one terminal start the showdown server
 ```
-cd ~/compsys726/gymnasium_envrionments/scripts
-python run.py train cli --gym showdown --domain random --task max DQN
+node pokemon-showdown start --no-security
 ```
 
-In the case of this assignment your goal is to beat the ***max*** agent (task) in the ***random*** domain. The random domain creates a random team for each player each game, meaning the agent will need to adapt to ***any*** Pokemon team it may use or compete against.
+In a second terminal start the RL training. 
+
+```
+cares-rl train cli --gym showdown --domain random --task max DQN
+```
+
+In the case of this assignment your goal is to beat the ***max*** agent (task) in the ***random*** domain. The random domain creates a random team for each player each game, meaning the agent will need to adapt to ***any*** Pokemon team it may use or compete against. The **max** agent should be self evident.
 
 ## Viewing Training Results
-The results of training the agents is saved into this folder: ***~/cares_rl_logs/*** by default. The structure of the results is saved as below.
+The results of training the agents is saved into the home folder: ***~/cares_rl_logs/*** by default. The structure of the results is saved as below.
 
 ```text
 ├─ <log_path>
@@ -174,25 +168,24 @@ The data folder contains all the training/evaluation data from the training proc
 
 ```
 cd ~/compsys726/cares_reinforcement_learning/cares_reinforcement_learning/util
-python plotter.py -s ~/cares_rl_logs -d ~/cares_rl_logs/ALGORITHM/ALGORITHM-TASK-YY_MM_DD:HH:MM:SS --y_train win --y_eval win
+cares-rl-plot -s ~/cares_rl_logs -d ~/cares_rl_logs/ALGORITHM/ALGORITHM-TASK-YY_MM_DD:HH:MM:SS --y_train win --y_eval win
 ```
 
-The command above will plot the average win rate of the agent at each step during training and evaluation. The win rate is what will be used to evaluate your agent. 
+The command above will plot the average win rate of the agent at each step during training and evaluation. The win rate is what will be used to evaluate your agent. **You will want to explore plotting and tracking a wide range of metrics to understand how your agent is learning!**
 
 For full commands for plotting results data see the help data for plotter.
 
 ```
-python plotter.py -h
+cares-rl-plot -h
 ```
 
 # Algorithm Selection
-As part of your project, you are required to select a reinforcement learning (RL) algorithm to train your agent to play Pokémon Showdown. You are responsible for justifying your choice. There is no single correct answer, choose the method you believe is most appropriate based on your understanding of the problem and the strengths of different RL algorithms. A wide range of algorithms are already implemented in the ***cares_reinforcement_learning*** library you are free to choose any of these algorithms (note the image based methods aren't useable due to no image representation being available). We are not expecting anyone to implement additional algorithms.
+As part of your project, you are required to select a reinforcement learning (RL) algorithm to train your agent to play Pokémon Showdown. You are responsible for justifying your choice. There is no single correct answer, choose the method you believe is most appropriate based on your understanding of the problem and the strengths of different RL algorithms. A wide range of algorithms are already implemented in the ***cares_reinforcement_learning*** library you are free to choose any of these algorithms (note the image based methods aren't useable due to no image representation being available). We are not expecting anyone to implement additional algorithms!
 
 All methods are implemented with their base configurations (network and hyperparameter settings) from their original paper implementations - you are free to consider changing these parameters if you feel it is required. The default values for all algorithms can be found [here](https://github.com/UoA-CARES/cares_reinforcement_learning/blob/main/cares_reinforcement_learning/util/configurations.py). **Do NOT edit** the configurations code directly to change hyperparameters. The run command can be used to adjust the various hyperparameters you can tune for each algorithm. The example below changes the **tau** value for DQN. 
 
 ```
-cd ~/compsys726/gymnasium_envrionments/scripts
-python run.py train cli --gym showdown --domain random --task max DQN --tau 0.5
+cares-rl train cli --gym showdown --domain random --task max DQN --tau 0.5
 ```
 
 The logs will then record the configuration files you can then resuse using the command below. If you wish to edit the network structure itself you will need to edit the ***alg_config.json*** file - this can't be changed via command line. 
@@ -204,19 +197,22 @@ The logs will then record the configuration files you can then resuse using the 
 ***alg_config.json*** - provides configurations for the algorithm, you can modify the hyperparameters and network architectures if you feel it is required here.
 
 ```
-python run.py train config --data_path PATH_TO_RUN_CONFIGURATIONS_FOLDER
+cares-rl train config --data_path PATH_TO_RUN_CONFIGURATIONS_FOLDER
 ```
 
+## Full Documentation
+For full documentation on the cares_reinforcement_learning package and the algorithms implemented please see the following link: uoa-cares.github.io/cares_reinforcement_learning/
+
 # Implementing your Showdown Environment
-Your Pokemon Environment will be fully implemented in ***showdown_environment.py***. The goal is to determine a suitable state representation, set of actions, and reward function to enable the agent to learn to beat the ***max*** expert agentin the **random** domain. Do not edit any other files and do not create any other files. 
+Your Pokemon Environment will be fully implemented in ***showdown_environment.py***. The goal is to determine a suitable state representation, set of actions, and reward function to enable the agent to learn to beat the ***max*** expert agentin the **random** domain. **Do not edit any other files and do not create any other files**. 
 
 ## showdown_environment.py
 The ShowdownEnvironment class represents the Showdown game environment for the agent. You are free to modify and expand the class and add additional features/functions required to implement your environment but only inside that file. This is not best coding practice but it makes the lecturers lives easier.
 
-There are two primary functions in the class that you need to implement in order to provde the agent with useful information to learn from. 
+There are three primary functions in the class that you need to implement in order to provde the agent with useful information to learn from. 
 
 ### State - embed_battle
-The ***embed_battle*** function returns to the state information to the agent - the current observation of Showdown. The provided example returns the current helth of the agents pokemon and the opponents pokemon. You will need to expand on this state representation to incorporate what you determine to be the best observation for the agent.
+The ***embed_battle*** function returns to the state information to the agent - the current observation of Showdown. The provided example returns the current helth of the agents pokemon and the opponents pokemon. You will need to expand on this state representation to incorporate what you determine to be the best observation for the agent. Do not forget to update the ***_observation_size*** function to reflect the size of the state representation you are providing to the agent - if anyone figures out how to automate this step please let the teaching staff know as it is a pain to do manually.
 
 ```python
 def embed_battle(self, battle: AbstractBattle) -> np.ndarray:
@@ -254,7 +250,7 @@ def embed_battle(self, battle: AbstractBattle) -> np.ndarray:
     return final_vector
 ```
 
-The function below returns the size of the embedding for the environment - this is critical for the correct setup of the network sizes. I couldn't find a way to automate this step as the battle object isn't created until after the setup of the environment. You will need to ***manually*** change this number to align with the size of the encoding vector returned by ***embed_battle***. Yes, I know this is annoying and dumb - but for the life of me I couldn't find a work around that wasn't significantly more jank.
+The function below returns the size of the embedding for the environment - this is critical for the correct setup of the network sizes. I couldn't find a way to automate this step as the battle object isn't created until after the setup of the environment. You will need to ***manually*** change this number to align with the size of the encoding vector returned by ***embed_battle***. Yes, I know this is annoying and dumb - but for the life of me I couldn't find a work around that wasn't significantly more jank - if you find a way to automate this step please let me know.
 
 ```python
 def _observation_size(self) -> int:
@@ -370,6 +366,8 @@ def process_action(self, action: np.int64) -> np.int64:
 ### Training/Evaluation Info - get_additional_info
 You will want to produce quantified performance metrics for your agent throughout the training beyond just the reward given to the agent. To add additional information to be plotted later you can extend the ***get_additional_info*** function. This will return to the training system additonal information about the progress of the agent in the battle that you can use to evaluate your agent. Note that the info data will only show the information from the last step of the episode. 
 
+This function is super critical for proper quantification of the agent's performance. The win rate is automatically calculated for you but you will want to add additional information to the logs to track the performance of your agent. The example below adds the win status of the battle to the info dictionary.
+
 ```python
 def get_additional_info(self) -> Dict[str, Dict[str, Any]]:
     info = super().get_additional_info()
@@ -415,23 +413,23 @@ rm -r ~/venv/test
 ```
 
 ## Step 3 - Upload Files to Google Drive
-Following this link: https://drive.google.com/drive/folders/1nuXDLVTvc9crlSS7gU0rDGpQSBKTiNo5
+Following this link: https://drive.google.com/drive/folders/1USmQugfW1DBxcH3DZrALpKaR6JVpMPWY?usp=sharing
 
 Create a folder using your ***upi*** as the name. Copy your **requirements.txt**, **showdown_environment.py**, and results folder from **~/cares_rl_logs/** into the folder. These files can be updated as many times as you wish until the final deadline. 
 
 # Evaluation
-The assignment will be evaluated based on how effectively your environment enables an agent to learn against the ***max*** expert agent (***task***) in the ***random*** domain. The random domain creates a random team for each player each game, meaning the agent will need to adapt to ***any*** Pokemon team it may use or compete against. There will be bonus points for demonstrating the ***optional*** ability to train an agent to be effective against the challenging ***simple*** expert agent (***task***).
+The assignment will be evaluated based on how effectively your environment enables an agent to learn against the ***max*** expert agent ***task*** in the ***random*** domain. The random domain creates a random team for each player each game, meaning the agent will need to adapt to ***any*** Pokemon team it may use or compete against. 
 
 ## Marking Guide
 Your trained agent will be evaluated based on its win rate performance against the ***max expert agent*** over 100 battles through testing comamnds in gym_environment. You can run this locally using the instructions below to get an indication of your mark and metrics for your report. The **final mark** used for your grade will be scored from running the code locally by the teaching staff. 
 
 ```
-python run.py test --data_path PATH_TO_RL_LOGS --seeds 10 --episodes 100
+cares-rl test --data_path PATH_TO_RL_LOGS --seeds 10 --episodes 100
 ```
 
 An example of this here for a prior training with DQN.
 ```
-python run.py test --data_path ~/cares_rl_logs/DQN/DQN-random-max-25_07_04_09-00-39/ --seeds 10 --episodes 100
+cares-rl test --data_path ~/cares_rl_logs/DQN/DQN-random-max-25_07_04_09-00-39/ --seeds 10 --episodes 100
 ```
 
 The breakdown of marks is shown below based the performance of your agent.
@@ -449,15 +447,4 @@ The breakdown of marks is shown below based the performance of your agent.
 | max (≥ 20%)             | 2.0%            |
 | max (≥ 10%)             | 1.0%            |
 | max (< 10%)             | 0.0%            |
-
-The primary goal is to train an agent capable of beating the ***max*** expert agent. For those wishing to push themselves there are **bonus marks** for anyone who trains their agent to perform against the ***simple*** expert agent. 
-
-| Simple Expert Agent (Win Rate)    | **Bonus Marks** |
-|-------------------------|-----------------|
-| simple (≥ 90%)          | +5%             |
-| simple (≥ 80%)          | +4%             |
-| simple (≥ 70%)          | +3%             |
-| simple (≥ 60%)          | +2%             |
-| simple (≥ 50%)          | +1%             |
-
 

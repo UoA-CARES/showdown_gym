@@ -1,8 +1,8 @@
 import os
 import time
 from typing import Any, Dict
-
 import numpy as np
+
 from poke_env import (
     AccountConfiguration,
     MaxBasePowerPlayer,
@@ -13,8 +13,12 @@ from poke_env.battle import AbstractBattle
 from poke_env.environment.single_agent_wrapper import SingleAgentWrapper
 from poke_env.environment.singles_env import ObsType
 from poke_env.player.player import Player
+from .base_environment import BaseShowdownEnv
 
-from showdown_gym.base_environment import BaseShowdownEnv
+from poke_env.data import GenData
+
+# Load Gen9 data (type chart etc.)
+GEN_DATA = GenData.from_gen(9)
 
 
 class ShowdownEnvironment(BaseShowdownEnv):
@@ -32,185 +36,135 @@ class ShowdownEnvironment(BaseShowdownEnv):
             account_name_two=account_name_two,
             team=team,
         )
-
         self.rl_agent = account_name_one
+        self._prev_battle_state = {}
 
+    # =========================================================
+    # Action space
+    # =========================================================
     def _get_action_size(self) -> int | None:
-        """
-        None just uses the default number of actions as laid out in process_action - 26 actions.
-
-        This defines the size of the action space for the agent - e.g. the output of the RL agent.
-
-        This should return the number of actions you wish to use if not using the default action scheme.
-        """
-        return None  # Return None if action size is default
+        return None  # default 26-action mapping used by CARES
 
     def process_action(self, action: np.int64) -> np.int64:
-        """
-        Returns the np.int64 relative to the given action.
-
-        The action mapping is as follows:
-        action = -2: default
-        action = -1: forfeit
-        0 <= action <= 5: switch
-        6 <= action <= 9: move
-        10 <= action <= 13: move and mega evolve
-        14 <= action <= 17: move and z-move
-        18 <= action <= 21: move and dynamax
-        22 <= action <= 25: move and terastallize
-
-        :param action: The action to take.
-        :type action: int64
-
-        :return: The battle order ID for the given action in context of the current battle.
-        :rtype: np.Int64
-        """
         return action
 
-    def get_additional_info(self) -> Dict[str, Dict[str, Any]]:
-        info = super().get_additional_info()
-
-        # Add any additional information you want to include in the info dictionary that is saved in logs
-        # For example, you can add the win status
-
-        if self.battle1 is not None:
-            agent = self.possible_agents[0]
-            info[agent]["win"] = self.battle1.won
-
-        return info
-
+    # =========================================================
+    # Reward Function
+    # =========================================================
     def calc_reward(self, battle: AbstractBattle) -> float:
         """
-        Calculates the reward based on the changes in state of the battle.
-
-        You need to implement this method to define how the reward is calculated
-
-        Args:
-            battle (AbstractBattle): The current battle instance containing information
-                about the player's team and the opponent's team from the player's perspective.
-            prior_battle (AbstractBattle): The prior battle instance to compare against.
-        Returns:
-            float: The calculated reward based on the change in state of the battle.
+        Reward based on HP, fainted Pokémon, and victory outcomes.
+        Inspired by SimpleRLPlayer reward_computing_helper.
         """
-
         prior_battle = self._get_prior_battle(battle)
 
-        reward = 0.0
+        if battle is None:
+            return 0.0
 
-        health_team = [mon.current_hp_fraction for mon in battle.team.values()]
-        health_opponent = [
-            mon.current_hp_fraction for mon in battle.opponent_team.values()
-        ]
+   
+        ally_hp = np.sum([m.current_hp_fraction for m in battle.team.values()])
+        opp_hp = np.sum([m.current_hp_fraction for m in battle.opponent_team.values()])
+        hp_diff = ally_hp - opp_hp
 
-        # If the opponent has less than 6 Pokémon, fill the missing values with 1.0 (fraction of health)
-        if len(health_opponent) < len(health_team):
-            health_opponent.extend([1.0] * (len(health_team) - len(health_opponent)))
+        ally_fainted = sum(m.fainted for m in battle.team.values())
+        opp_fainted = sum(m.fainted for m in battle.opponent_team.values())
+        faint_diff = (opp_fainted - ally_fainted) * 2.0
 
-        prior_health_opponent = []
-        if prior_battle is not None:
-            prior_health_opponent = [
-                mon.current_hp_fraction for mon in prior_battle.opponent_team.values()
-            ]
+        if prior_battle:
+            prev_ally_hp = np.sum([m.current_hp_fraction for m in prior_battle.team.values()])
+            prev_opp_hp = np.sum([m.current_hp_fraction for m in prior_battle.opponent_team.values()])
+            hp_delta = (prev_opp_hp - opp_hp) - (prev_ally_hp - ally_hp)
+        else:
+            hp_delta = 0.0
 
-        # Ensure health_opponent has 6 components, filling missing values with 1.0 (fraction of health)
-        if len(prior_health_opponent) < len(health_team):
-            prior_health_opponent.extend(
-                [1.0] * (len(health_team) - len(prior_health_opponent))
-            )
+        victory_bonus = 0.0
+        if battle.finished:
+            if battle.won:
+                victory_bonus += 30.0
+            elif battle.lost:
+                victory_bonus -= 15.0
 
-        diff_health_opponent = np.array(prior_health_opponent) - np.array(
-            health_opponent
-        )
+        reward = 1.0 * hp_delta + 0.5 * hp_diff + faint_diff + victory_bonus
+        return float(np.clip(reward, -30.0, 30.0))
 
-        # Reward for reducing the opponent's health
-        reward += np.sum(diff_health_opponent)
-
-        return reward
-
+    # =========================================================
+    # Observation space
+    # =========================================================
     def _observation_size(self) -> int:
         """
-        Returns the size of the observation size to create the observation space for all possible agents in the environment.
-
-        You need to set obvervation size to the number of features you want to include in the observation.
-        Annoyingly, you need to set this manually based on the features you want to include in the observation from emded_battle.
-
-        Returns:
-            int: The size of the observation space.
+        Embedding structure:
+          4x base powers
+          4x type multipliers
+          2x (ally_fainted/6, opp_fainted/6)
+          2x (ally_total_hp, opp_total_hp)
+        = 12 features
         """
-
-        # Simply change this number to the number of features you want to include in the observation from embed_battle.
-        # If you find a way to automate this, please let me know!
         return 12
 
     def embed_battle(self, battle: AbstractBattle) -> np.ndarray:
         """
-        Embeds the current state of a Pokémon battle into a numerical vector representation.
-        This method generates a feature vector that represents the current state of the battle,
-        this is used by the agent to make decisions.
-
-        You need to implement this method to define how the battle state is represented.
-
-        Args:
-            battle (AbstractBattle): The current battle instance containing information about
-                the player's team and the opponent's team.
-        Returns:
-            np.float32: A 1D numpy array containing the state you want the agent to observe.
+        SB3-style compact embedding of the battle state.
+        Combines per-move offensive info with overall HP context.
         """
+        obs = np.zeros(self._observation_size(), dtype=np.float32)
 
-        health_team = [mon.current_hp_fraction for mon in battle.team.values()]
-        health_opponent = [
-            mon.current_hp_fraction for mon in battle.opponent_team.values()
-        ]
+        if not battle.active_pokemon or not battle.opponent_active_pokemon:
+            return obs
 
-        # Ensure health_opponent has 6 components, filling missing values with 1.0 (fraction of health)
-        if len(health_opponent) < len(health_team):
-            health_opponent.extend([1.0] * (len(health_team) - len(health_opponent)))
+        active = battle.active_pokemon
+        opp = battle.opponent_active_pokemon
 
-        #########################################################################################################
-        # Caluclate the length of the final_vector and make sure to update the value in _observation_size above #
-        #########################################################################################################
+        moves_base_power = np.zeros(4, dtype=np.float32)
+        moves_dmg_multiplier = np.ones(4, dtype=np.float32)
 
-        # Final vector - single array with health of both teams
-        final_vector = np.concatenate(
-            [
-                health_team,  # N components for the health of each pokemon
-                health_opponent,  # N components for the health of opponent pokemon
-            ]
-        )
+        for i, move in enumerate(battle.available_moves[:4]):
+            moves_base_power[i] = float((move.base_power or 0) / 100.0)
+            try:
+                if move.type and opp.type_1:
+                    mult = move.type.damage_multiplier(
+                        opp.type_1, getattr(opp, "type_2", None),
+                        type_chart=GEN_DATA.type_chart,
+                    )
+                    moves_dmg_multiplier[i] = float(mult)
+            except Exception:
+                moves_dmg_multiplier[i] = 1.0
 
-        return final_vector
+        ally_hp_total = np.sum([m.current_hp_fraction for m in battle.team.values()]) / 6.0
+        opp_hp_total = np.sum([m.current_hp_fraction for m in battle.opponent_team.values()]) / 6.0
+        ally_fainted = len([m for m in battle.team.values() if m.fainted]) / 6.0
+        opp_fainted = len([m for m in battle.opponent_team.values() if m.fainted]) / 6.0
+
+        obs = np.concatenate([
+            moves_base_power,
+            moves_dmg_multiplier,
+            np.array([ally_fainted, opp_fainted, ally_hp_total, opp_hp_total], dtype=np.float32),
+        ])
+
+        return obs.astype(np.float32)
+
+    # =========================================================
+    # Additional info (logging)
+    # =========================================================
+    def get_additional_info(self) -> Dict[str, Dict[str, Any]]:
+        info = super().get_additional_info()
+        if self.battle1 is not None:
+            agent = self.possible_agents[0]
+            info[agent]["win"] = self.battle1.won
+            info[agent]["turns"] = self.battle1.turn
+        return info
+
 
 
 ########################################
-# DO NOT EDIT THE CODE BELOW THIS LINE #
+# DO NOT EDIT BELOW THIS LINE
 ########################################
-
 
 class SingleShowdownWrapper(SingleAgentWrapper):
     """
-    A wrapper class for the PokeEnvironment that simplifies the setup of single-agent
-    reinforcement learning tasks in a Pokémon battle environment.
-
-    This class initializes the environment with a specified battle format, opponent type,
-    and evaluation mode. It also handles the creation of opponent players and account names
-    for the environment.
-
-    Do NOT edit this class!
-
-    Attributes:
-        battle_format (str): The format of the Pokémon battle (e.g., "gen9randombattle").
-        opponent_type (str): The type of opponent player to use ("simple", "max", "random").
-        evaluation (bool): Whether the environment is in evaluation mode.
-    Raises:
-        ValueError: If an unknown opponent type is provided.
+    Wrapper for single-agent training against specified opponents.
     """
 
-    def __init__(
-        self,
-        team_type: str = "random",
-        opponent_type: str = "random",
-        evaluation: bool = False,
-    ):
+    def __init__(self, team_type: str = "random", opponent_type: str = "random", evaluation: bool = False):
         opponent: Player
         unique_id = time.strftime("%H%M%S")
 
@@ -219,9 +173,7 @@ class SingleShowdownWrapper(SingleAgentWrapper):
 
         opponent_configuration = AccountConfiguration(opponent_account, None)
         if opponent_type == "simple":
-            opponent = SimpleHeuristicsPlayer(
-                account_configuration=opponent_configuration
-            )
+            opponent = SimpleHeuristicsPlayer(account_configuration=opponent_configuration)
         elif opponent_type == "max":
             opponent = MaxBasePowerPlayer(account_configuration=opponent_configuration)
         elif opponent_type == "random":
@@ -231,12 +183,10 @@ class SingleShowdownWrapper(SingleAgentWrapper):
 
         account_name_one: str = "t1" if not evaluation else "e1"
         account_name_two: str = "t2" if not evaluation else "e2"
-
         account_name_one = f"{account_name_one}_{unique_id}"
         account_name_two = f"{account_name_two}_{unique_id}"
 
         team = self._load_team(team_type)
-
         battle_format = "gen9randombattle" if team is None else "gen9ubers"
 
         primary_env = ShowdownEnvironment(
@@ -250,17 +200,9 @@ class SingleShowdownWrapper(SingleAgentWrapper):
 
     def _load_team(self, team_type: str) -> str | None:
         bot_teams_folders = os.path.join(os.path.dirname(__file__), "teams")
-
         bot_teams = {}
-
         for team_file in os.listdir(bot_teams_folders):
             if team_file.endswith(".txt"):
-                with open(
-                    os.path.join(bot_teams_folders, team_file), "r", encoding="utf-8"
-                ) as file:
+                with open(os.path.join(bot_teams_folders, team_file), "r", encoding="utf-8") as file:
                     bot_teams[team_file[:-4]] = file.read()
-
-        if team_type in bot_teams:
-            return bot_teams[team_type]
-
-        return None
+        return bot_teams.get(team_type, None)
