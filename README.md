@@ -126,13 +126,45 @@ In one terminal start the showdown server
 node pokemon-showdown start --no-security
 ```
 
-In a second terminal start the RL training. 
+In a second terminal start the RL training - with the checkpointing flag set to enable resuming at a later date. 
 
 ```
-cares-rl train cli --gym showdown --domain random --task max DQN
+cares-rl train cli --gym showdown --domain random --task max DQN  --save_train_checkpoints 1
 ```
 
 In the case of this assignment your goal is to beat the ***max*** agent (task) in the ***random*** domain. The random domain creates a random team for each player each game, meaning the agent will need to adapt to ***any*** Pokemon team it may use or compete against. The **max** agent should be self evident.
+
+## Configuration
+Algorithm configurations can be modified through the command line using the specific configuration flag  e.g. `--tau 0.5'. Not all configurations are available through the command line - only basic hyperparameters are available through the configuration files. For example, if you wish to change the network structure itself you will need to edit the ***alg_config.json*** file - this can't be changed via command line.
+
+```
+cares-rl train cli --gym showdown --domain random --task max DQN --tau 0.05 --save_train_checkpoints 1
+```
+
+The training system will automatically save configuration files used for a given training run in the logs. These logs can then be reused to adapt the training process further.
+
+***env_config*** - should be left untouched as it defines the task you are training on. This should ***NOT*** change.
+
+***traing_config*** - provides information about the training configuration for this run. It is not recommended that you modify these parameters.
+
+***alg_config.json*** - provides configurations for the algorithm, you can modify the hyperparameters and network architectures if you feel it is required here.
+
+To run using the modified configuration files you can use the command below. Make sure to change the path to the folder where the configuration files are saved.
+
+```
+cares-rl train config --data_path PATH_TO_RUN_CONFIGURATIONS_FOLDER
+```
+
+Full configurations for all algorithms can be found [here](https://github.com/UoA-CARES/cares_reinforcement_learning/blob/main/cares_reinforcement_learning/algorithm/configurations.py). You are free to modify the hyperparameters and network architectures if you feel it is required - *but do not change these in the code!*
+
+## Training Takes Time (Resume Training)
+Training a Reinforcement Learning agent to learn to play Pokemon Showdown is a complex task and will take a significant amount of time. The training time will depend on the algorithm you choose, the hyperparameters, and the complexity of the environment. You can expect training to take anywhere from a few hours to a few days for a single seed on a basic GPU - longer if CPU bound. To enable a training run to be stopped and restarted later, the training system will automatically save checkpoints of the model at regular intervals. This allows you to resume training from a specific point without losing much progress.
+
+To stop training you can use `ctrl-c` to end the current training instance. The training will save the current state of the model and the training progress. You can then resume training from the last checkpoint by using the command below. Make sure to change the path to the folder where the configuration files are saved and the checkpoint you wish to resume from - note this will only work for training runs that use the **--save_train_checkpoints 1** flag active.
+
+```
+cares-rl resume --data_path <PATH_TO_TRAINING_DATA>
+```
 
 ## Viewing Training Results
 The results of training the agents is saved into the home folder: ***~/cares_rl_logs/*** by default. The structure of the results is saved as below.
@@ -178,29 +210,13 @@ For full commands for plotting results data see the help data for plotter.
 cares-rl-plot -h
 ```
 
+## Full CARES RL Documentation
+For full documentation on the cares_reinforcement_learning package and the algorithms implemented please see the following link: uoa-cares.github.io/cares_reinforcement_learning/
+
 # Algorithm Selection
 As part of your project, you are required to select a reinforcement learning (RL) algorithm to train your agent to play Pokémon Showdown. You are responsible for justifying your choice. There is no single correct answer, choose the method you believe is most appropriate based on your understanding of the problem and the strengths of different RL algorithms. A wide range of algorithms are already implemented in the ***cares_reinforcement_learning*** library you are free to choose any of these algorithms (note the image based methods aren't useable due to no image representation being available). We are not expecting anyone to implement additional algorithms!
 
-All methods are implemented with their base configurations (network and hyperparameter settings) from their original paper implementations - you are free to consider changing these parameters if you feel it is required. The default values for all algorithms can be found [here](https://github.com/UoA-CARES/cares_reinforcement_learning/blob/main/cares_reinforcement_learning/util/configurations.py). **Do NOT edit** the configurations code directly to change hyperparameters. The run command can be used to adjust the various hyperparameters you can tune for each algorithm. The example below changes the **tau** value for DQN. 
-
-```
-cares-rl train cli --gym showdown --domain random --task max DQN --tau 0.5
-```
-
-The logs will then record the configuration files you can then resuse using the command below. If you wish to edit the network structure itself you will need to edit the ***alg_config.json*** file - this can't be changed via command line. 
-
-***env_config*** - should be left untouched as it defines the task you are training on. This should ***NOT*** change.
-
-***traing_config*** - provides information about the training configuration for this run. It is not recommended that you modify these parameters.
-
-***alg_config.json*** - provides configurations for the algorithm, you can modify the hyperparameters and network architectures if you feel it is required here.
-
-```
-cares-rl train config --data_path PATH_TO_RUN_CONFIGURATIONS_FOLDER
-```
-
-## Full Documentation
-For full documentation on the cares_reinforcement_learning package and the algorithms implemented please see the following link: uoa-cares.github.io/cares_reinforcement_learning/
+All methods are implemented with their base configurations (network and hyperparameter settings) from their original paper implementations - you are free to consider changing these parameters if you feel it is required. The default values for all algorithms can be found [here](https://github.com/UoA-CARES/cares_reinforcement_learning/blob/main/cares_reinforcement_learning/util/configurations.py). **Do NOT edit** the configurations code directly to change hyperparameters. The run command can be used to adjust the various hyperparameters you can tune for each algorithm. 
 
 # Implementing your Showdown Environment
 Your Pokemon Environment will be fully implemented in ***showdown_environment.py***. The goal is to determine a suitable state representation, set of actions, and reward function to enable the agent to learn to beat the ***max*** expert agentin the **random** domain. **Do not edit any other files and do not create any other files**. 
