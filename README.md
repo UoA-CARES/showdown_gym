@@ -96,7 +96,6 @@ To test that everything has installed correctly you can test training an RL agen
 To test that everything has installed correctly you can run an example of the openai environment with TD3 through the console command below.
 
 ```
-cd ~/compsys726/gymnasium_envrionments/scripts
 cares-rl train cli --gym openai --task HalfCheetah-v5 TD3 --display 1
 ```
 
@@ -118,7 +117,7 @@ pip3 install -e .
 ```
 
 # Showdown Training
-To run the Showdown Environment you need to run it through the ***gymnasium_envrionments*** package. The Showdown environment is not currently implemented - it is your job to complete the state, action, and reward functions for the agent to learn from. The current implementation shows a basic functional example but this is insufficient to learn from. 
+To run the Showdown Environment you need to run it through the ***cares_reinforcement_learning*** package. The Showdown environment is not currently implemented - it is your job to complete the state, action, and reward functions for the agent to learn from. The current implementation shows a basic functional example but this is insufficient to learn from. 
 
 To train an agent on the environment you can use the command below. The ***domain*** defines the type of Pokemon team you will be training with and against. The ***task*** defines the type of expert agent that the agent will train to beat. 
 
