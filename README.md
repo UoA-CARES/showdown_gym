@@ -195,11 +195,15 @@ The results of training the agents is saved into the home folder: ***~/cares_rl_
 |  ├─ ...
 ```
 
-The data folder contains all the training/evaluation data from the training process. The figures will default to plotting the reward throughout the training and evaluation phases. If you want to produce plots of other information you can use the plotter with commands similar too below:
+The data folder contains all the training/evaluation data from the training process. The figures will default to plotting the reward throughout the training and evaluation phases. If you want to produce plots of other information, you can use the plotter with commands similar to the ones below:
 
 ```
 cd ~/compsys726/cares_reinforcement_learning/cares_reinforcement_learning/util
-cares-rl-plot -s ~/cares_rl_logs -d ~/cares_rl_logs/ALGORITHM/ALGORITHM-TASK-YY_MM_DD:HH:MM:SS --y_train win --y_eval win
+cares-rl-plot \
+    --data ~/cares_rl_logs/ALGORITHM/ALGORITHM-TASK-YY_MM_DD:HH:MM:SS \
+    --output ~/cares_rl_logs \
+    --plot "source=train;y=win;x_label=Environment Steps;y_label=Win Rate;title=Training" \
+    --plot "source=eval;y=win;x_label=Environment Steps;y_label=Win Rate;title=Evaluation"
 ```
 
 The command above will plot the average win rate of the agent at each step during training and evaluation. The win rate is what will be used to evaluate your agent. **You will want to explore plotting and tracking a wide range of metrics to understand how your agent is learning!**
