@@ -443,12 +443,12 @@ The assignment will be evaluated based on how effectively your environment enabl
 Your trained agent will be evaluated based on its win rate performance against the ***max expert agent*** over 100 battles through testing comamnds in gym_environment. You can run this locally using the instructions below to get an indication of your mark and metrics for your report. The **final mark** used for your grade will be scored from running the code locally by the teaching staff. 
 
 ```
-cares-rl test --data_path PATH_TO_RL_LOGS --seeds 10 --episodes 100
+cares-rl test --data_path PATH_TO_RL_LOGS --eval_seed 10 --episodes 100
 ```
 
 An example of this here for a prior training with DQN.
 ```
-cares-rl test --data_path ~/cares_rl_logs/DQN/DQN-random-max-25_07_04_09-00-39/ --seeds 10 --episodes 100
+cares-rl test --data_path ~/cares_rl_logs/DQN/DQN-random-max-25_07_04_09-00-39/ --eval_seed 10 --episodes 100
 ```
 
 The breakdown of marks is shown below based the performance of your agent.
