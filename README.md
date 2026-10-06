@@ -436,6 +436,8 @@ Following this link: https://drive.google.com/drive/folders/1USmQugfW1DBxcH3DZrA
 
 Create a folder using your ***upi*** as the name. Copy your **requirements.txt**, **showdown_environment.py**, and results folder from **~/cares_rl_logs/** into the folder. These files can be updated as many times as you wish until the final deadline. 
 
+**To prevent storage limits being hit, please delete the videos folder, memory folder, and all checkpoint model folders except `final` (or checkpoint with the weights you want used) before uploading to the Google Drive** 
+
 # Evaluation
 The assignment will be evaluated based on how effectively your environment enables an agent to learn against the ***max*** expert agent ***task*** in the ***random*** domain. The random domain creates a random team for each player each game, meaning the agent will need to adapt to ***any*** Pokemon team it may use or compete against. 
 
